@@ -21,12 +21,15 @@ class BaseDAO:
 
     @classmethod
     async def find_limit_by_filter(cls, limit: Optional[int] = None, **filters):
-      async with async_session_maker() as session:
-        query = select(cls.model).filter_by(**filters)
-        if limit is not None:
-          query = query.limit(limit)
-        result = await session.execute(query)
-        return result.scalars().all()
+        async with async_session_maker() as session:
+            filters = {key: value for key, value in filters.items() if value is not None}
+            query = select(cls.model)
+            for key, value in filters.items():
+                query = query.filter(getattr(cls.model, key) == value)
+            if limit is not None:
+                query = query.limit(limit)
+            result = await session.execute(query)
+            return result.scalars().all()
 
 
     @classmethod

@@ -4,6 +4,7 @@ from typing import AsyncIterator
 from fastapi import FastAPI
 
 from app.market.router import router as market_router
+from app.products.router import router as product_router
 from app.config import settings
 
 from fastapi_cache import FastAPICache
@@ -22,3 +23,4 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
 app = FastAPI(lifespan=lifespan)
 
 app.include_router(market_router)
+app.include_router(product_router)
