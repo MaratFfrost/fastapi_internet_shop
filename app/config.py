@@ -1,7 +1,6 @@
 from typing import Literal
-from pydantic import  ConfigDict, model_validator
+from pydantic import BaseModel, Field, ConfigDict, model_validator
 from pydantic_settings import BaseSettings
-
 
 class Settings(BaseSettings):
     MODE: Literal["DEV", "TEST", "PROD"]
@@ -16,12 +15,13 @@ class Settings(BaseSettings):
     REDIS_HOST: str
     REDIS_PORT: int
 
-    @model_validator(mode='after')
-    def get_database_url(cls, values):
-        values.DATABASE_URL = (
-            f"postgresql+asyncpg://{values.DB_USER}:{values.DB_PASS}@{values.DB_HOST}:{values.DB_PORT}/{values.DB_NAME}"
-        )
-        return values
+    SECRET_KEY: str
+    SECRET_ALGORITHM: str
+
+
+    MAIL_USERNAME: str
+    MAIL_PASSWORD: str
+    MAIL_PORT: int
 
     TEST_DB_HOST: str
     TEST_DB_PORT: int
@@ -31,11 +31,14 @@ class Settings(BaseSettings):
     TEST_DATABASE_URL: str = ""
 
     @model_validator(mode='after')
-    def get_test_database_url(cls, values):
-        values.TEST_DATABASE_URL = (
-            f"postgresql+asyncpg://{values.TEST_DB_USER}:{values.TEST_DB_PASS}@{values.TEST_DB_HOST}:{values.TEST_DB_PORT}/{values.TEST_DB_NAME}"
+    def generate_database_urls(self):
+        self.DATABASE_URL = (
+            f"postgresql+asyncpg://{self.DB_USER}:{self.DB_PASS}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
         )
-        return values
+        self.TEST_DATABASE_URL = (
+            f"postgresql+asyncpg://{self.TEST_DB_USER}:{self.TEST_DB_PASS}@{self.TEST_DB_HOST}:{self.TEST_DB_PORT}/{self.TEST_DB_NAME}"
+        )
+        return self
 
     model_config = ConfigDict(
         env_file=".env",
