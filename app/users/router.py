@@ -27,33 +27,38 @@ async def show_orders(user: User = Depends(get_current_user)):
 
 
 @router.post("/make_an_order")
-async def make_order(user_data: SUserOrder ,user: User = Depends(get_current_user)):
-    if user_data.quantity <= 0 or len(user_data.adres) == 0:
-      raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="quantity of product must be greater zero or  adress must not be empty")
+async def make_order(user_data: SUserOrder, user: User = Depends(get_current_user)):
+    if user_data.quantity <= 0 or not user_data.adres.strip():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Quantity must be greater than zero, and address must not be empty"
+        )
 
-
-    product = await ProductDAO.find_one_or_none(id = user_data.product_id)
-
+    product = await ProductDAO.find_one_or_none(id=user_data.product_id)
     if not product:
-      raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="product wasn`t found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Product not found"
+        )
 
     if product.amount < user_data.quantity:
-      raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="impossible to make order because of a big quantity of product")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Not enough products in stock"
+        )
 
-    ful_price = user_data.quantity * product.price
-
-
+    total_price = product.price * user_data.quantity
     await OrderDAO.add(
-                       user_id = user.id,
-                       market_id = user_data.market_id,
-                       product_id = user_data.product_id,
-                       quantity = user_data.quantity,
-                       total_price = ful_price,
-                       is_paid = False,
-                       adres = user_data.adres
-                       )
+        user_id=user.id,
+        market_id=user_data.market_id,
+        product_id=user_data.product_id,
+        quantity=user_data.quantity,
+        total_price=total_price,
+        is_paid=False,
+        adres=user_data.adres
+    )
+    return {"message": "Order successfully created"}
 
-    return "order was added cart"
 
 
 @router.delete("/del_an_order")
@@ -82,14 +87,14 @@ async def login( response: Response, user_data: SUserLogin):
    if not user:
      raise HTTPException(status_code=401)
    access_token = create_access_token({"sub":str(user.id)})
-   response.set_cookie("booking_access_token", access_token, httponly=True, secure=True,)
+   response.set_cookie("access_token", access_token, httponly=True, secure=True,)
    return "user login sucsesful"
 
 
 @router.post("/logout")
 async def logout(response: Response, user: User = Depends(get_current_user)):
   try:
-    response.delete_cookie("booking_access_token")
+    response.delete_cookie("access_token")
     return f"You logout sucsesful"
   except:
     raise HTTPException(status_code=400)
@@ -98,8 +103,9 @@ async def logout(response: Response, user: User = Depends(get_current_user)):
 @router.delete("/delete_account")
 async def delete_user(response: Response, user: User = Depends(get_current_user)):
   try:
+    await OrderDAO.delete_by_filters(user_id = user.id)
     await UserDAO.delete_by_filters(id = user.id)
-    response.delete_cookie("booking_access_token")
+    response.delete_cookie("access_token")
     return f"account deleted sucsessfuly"
   except Exception as e:
     raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))

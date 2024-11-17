@@ -6,7 +6,7 @@ from app.users.dao import UserDAO
 
 
 def get_token(request: Request):
-  token = request.cookies.get("booking_access_token")
+  token = request.cookies.get("access_token")
   if not token:
     raise HTTPException(status_code=401)
   return token
