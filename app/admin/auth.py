@@ -3,12 +3,15 @@ import jwt
 from starlette.responses import RedirectResponse
 from starlette.requests import Request
 from sqladmin.authentication import AuthenticationBackend
+from passlib.context import CryptContext
 
 from app.config import settings
 
 from fastapi import Depends, HTTPException, status
 
 from app.users.dao import UserDAO
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated = "auto")
 
 class AdminAuth(AuthenticationBackend):
 

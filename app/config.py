@@ -18,6 +18,8 @@ class Settings(BaseSettings):
     SECRET_KEY: str
     SECRET_ALGORITHM: str
 
+    RABBITMQ_HOST: str
+    RABBITMQ_PORT: int
 
     MAIL_USERNAME: str
     MAIL_PASSWORD: str

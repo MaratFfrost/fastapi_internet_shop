@@ -1,10 +1,19 @@
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+import json
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 
 from fastapi_cache.decorator import cache
 
+from random import randint
+
+import jwt
+
+from app.config import settings
+
 from app.orders.dao import OrderDAO
 from app.products.dao import ProductDAO
-from app.users.auth import authencicate_user, create_access_token, get_password_hash
+from app.services.consumer import send_email_to_user
+from app.services.producer import send_to_rabbitmq
+from app.users.auth import activate, authencicate_user, create_access_token, create_data_token, get_password_hash
 from app.users.dao import UserDAO
 from app.users.dependencies import get_current_user
 from app.users.model import User
@@ -71,17 +80,50 @@ async def delete_order(order_id: int, user: User = Depends(get_current_user)):
 
 
 @router.post("/register")
-async def register(user_data: SUserLogin):
+async def register(response: Response , user_data: SUserLogin):
     user = await UserDAO.find_one_or_none(email = user_data.email)
     if user:
       raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="user already exist")
+    code = randint(10000, 99999)
+
     password = get_password_hash(user_data.password)
-    await UserDAO.add(email = user_data.email, hashed_password = password, is_admin=False)
-    return f"added sucsessfuly"
+    data_token = create_data_token({"code":code, "email":f"{user_data.email}", "password": password})
+
+    response.set_cookie("data", data_token, httponly=True, secure=True)
+    message = {
+        "email": user_data.email,
+        "code": code
+    }
+    message_body = json.dumps(message)
+    send_to_rabbitmq(message_body)
+    send_email_to_user()
+
+    return f"code was sent"
+
+
+
+@router.post("/activate_account")
+async def activate_account(request: Request, code_user: int):
+
+    token = request.cookies.get("data")
+    if not token:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Token not found")
+
+    try:
+      result = await activate(token=token, code_user=code_user)
+    except:
+       raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST)
+
+    await UserDAO.add(email=result[0], hashed_password=result[1], is_admin=False )
+
+    return {"message": "User added successfully"}
+
+
+
 
 
 @router.post("/login")
-async def login( response: Response, user_data: SUserLogin):
+async def login(response: Response, user_data: SUserLogin):
 
    user = await authencicate_user(user_data.email, user_data.password)
    if not user:
