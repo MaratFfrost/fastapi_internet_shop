@@ -3,30 +3,40 @@ import jwt
 from starlette.responses import RedirectResponse
 from starlette.requests import Request
 from sqladmin.authentication import AuthenticationBackend
-from passlib.context import CryptContext
+from app.users.auth import verify_password
 
 from app.config import settings
 
 from fastapi import Depends, HTTPException, status
 
+from app.users.auth import create_token
 from app.users.dao import UserDAO
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated = "auto")
+
 
 class AdminAuth(AuthenticationBackend):
 
   async def login(self, request: Request):
+
     form = await request.form()
     email, password = form["username"], form["password"]
 
-    admin = await UserDAO.find_one_or_none(email=email, hashed_password=password)
 
-    if not admin:
+    try:
+      admin = await UserDAO.find_one_or_none(email=email)
+
+      if not admin:
         return RedirectResponse(request.url_for("admin:login"), status_code=status.HTTP_302_FOUND)
 
-    admin_access_token = self.create_admin_access_token({"sub": str(admin.id)})
-    request.session.update({"token": admin_access_token})
-    return True
+      if not verify_password(password, admin.hashed_password):
+        return RedirectResponse(request.url_for("admin:login"), status_code=status.HTTP_302_FOUND)
+
+      admin_access_token = create_token(time_to_exp=30, data={"sub": str(admin.id), "role": "admin"})
+      request.session.update({"token": admin_access_token})
+      return True
+
+    except:
+      RedirectResponse(request.url_for("admin:login"), status_code=status.HTTP_302_FOUND)
 
   @staticmethod
   def get_token(request: Request) -> str:
@@ -34,16 +44,6 @@ class AdminAuth(AuthenticationBackend):
     if not token:
       raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token not found")
     return token
-
-  @staticmethod
-  def create_admin_access_token(data: dict) -> str:
-    to_encode = data.copy()
-    expire = datetime.now(timezone.utc) + timedelta(minutes=30)
-    to_encode.update({"exp": expire, "role": "admin"})
-    encoded_jwt = jwt.encode(
-        to_encode, settings.SECRET_KEY, algorithm=settings.SECRET_ALGORITHM
-    )
-    return encoded_jwt
 
   async def get_current_admin(self, token: str = Depends(get_token)):
     try:
@@ -86,4 +86,4 @@ class AdminAuth(AuthenticationBackend):
 
     return True
 
-authenication_backend = AdminAuth(secret_key="...")
+authenication_backend = AdminAuth(secret_key=settings.SECRET_KEY)

@@ -13,7 +13,7 @@ from app.orders.dao import OrderDAO
 from app.products.dao import ProductDAO
 from app.services.consumer import send_email_to_user
 from app.services.producer import send_to_rabbitmq
-from app.users.auth import activate, authencicate_user, create_access_token, create_data_token, get_password_hash
+from app.users.auth import activate, authencicate_user, create_token, get_password_hash
 from app.users.dao import UserDAO
 from app.users.dependencies import get_current_user
 from app.users.model import User
@@ -87,7 +87,7 @@ async def register(response: Response , user_data: SUserLogin):
     code = randint(10000, 99999)
 
     password = get_password_hash(user_data.password)
-    data_token = create_data_token({"code":code, "email":f"{user_data.email}", "password": password})
+    data_token = create_token( time_to_exp=10, data={"code":code, "email":f"{user_data.email}", "password": password})
 
     response.set_cookie("data", data_token, httponly=True, secure=True)
     message = {
@@ -128,7 +128,7 @@ async def login(response: Response, user_data: SUserLogin):
    user = await authencicate_user(user_data.email, user_data.password)
    if not user:
      raise HTTPException(status_code=401)
-   access_token = create_access_token({"sub":str(user.id)})
+   access_token = create_token(time_to_exp=30, data={"sub":str(user.id)})
    response.set_cookie("access_token", access_token, httponly=True, secure=True,)
    return "user login sucsesful"
 

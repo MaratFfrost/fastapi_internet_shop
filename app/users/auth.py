@@ -42,19 +42,10 @@ async def activate(token: str, code_user:int):
 
   return email, password
 
-def create_data_token(data: dict)-> str:
-  to_encode=data.copy()
-  expire = datetime.now(timezone.utc)  + timedelta(minutes=10)
-  to_encode.update({"exp": expire})
-  encoded_jwt = jwt.encode(
-    to_encode, settings.SECRET_KEY, settings.SECRET_ALGORITHM
-  )
-  return encoded_jwt
 
-
-def create_access_token(data: dict)->str:
+def create_token(time_to_exp: int, data: dict)->str:
   to_encode=data.copy()
-  expire = datetime.now(timezone.utc)  + timedelta(minutes=30)
+  expire = datetime.now(timezone.utc)  + timedelta(minutes=time_to_exp)
   to_encode.update({"exp": expire})
   encoded_jwt = jwt.encode(
     to_encode, settings.SECRET_KEY, settings.SECRET_ALGORITHM
@@ -64,8 +55,12 @@ def create_access_token(data: dict)->str:
 async def authencicate_user(email: EmailStr, password: str):
   try:
     user = await UserDAO.find_one_or_none(email=email)
-    if not user and not verify_password(password, user.password):
+
+    if not user:
+      return None
+    elif not verify_password(password, user.hashed_password):
+
       return None
     return user
-  except:
-    raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
+  except Exception as e:
+    raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
