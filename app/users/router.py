@@ -16,6 +16,7 @@ from app.services.producer import send_to_rabbitmq
 from app.users.auth import activate, authencicate_user, create_token, get_password_hash
 from app.users.dao import UserDAO
 from app.users.dependencies import get_current_user
+from cloudipsp import Api, Checkout
 from app.users.model import User
 from app.users.shemas import SUserLogin, SUserOrder
 
@@ -117,9 +118,6 @@ async def activate_account(request: Request, code_user: int):
     await UserDAO.add(email=result[0], hashed_password=result[1], is_admin=False )
 
     return {"message": "User added successfully"}
-
-
-
 
 
 @router.post("/login")

@@ -18,6 +18,11 @@ class Settings(BaseSettings):
     SECRET_KEY: str
     SECRET_ALGORITHM: str
 
+    MONGODB_PASSWORD:str
+    MONGODB_NAME: str
+    MONGODB_COLLECTION_NAME:str
+    MONGODB_URL: str = ""
+
     RABBITMQ_HOST: str
     RABBITMQ_PORT: int
 
@@ -34,6 +39,10 @@ class Settings(BaseSettings):
 
     @model_validator(mode='after')
     def generate_database_urls(self):
+        self.MONGODB_URL = (
+            f"mongodb+srv://tarptarpic:{self.MONGODB_PASSWORD}@cluster0.9zk7b.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
+        )
+
         self.DATABASE_URL = (
             f"postgresql+asyncpg://{self.DB_USER}:{self.DB_PASS}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
         )

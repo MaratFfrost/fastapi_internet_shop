@@ -1,6 +1,8 @@
 from sqlalchemy import NullPool
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
+from pymongo import AsyncMongoClient
+from boto3.dynamodb.conditions import Key
 
 from app.config import settings
 
@@ -13,9 +15,18 @@ else:
   DATABASE_PARAMS = {}
 
 
+""""Создание сессии в PostgreSQL"""
 engine = create_async_engine(DATABASE_URL, **DATABASE_PARAMS)
 
 async_session_maker = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 class Base(DeclarativeBase):
   pass
+
+
+"""Создание сессии в MongoDB"""
+
+client = AsyncMongoClient(settings.MONGODB_URL)
+
+mongodb = client[settings.MONGODB_NAME]
+mongodb_collection = mongodb[settings.MONGODB_COLLECTION_NAME]
