@@ -5,10 +5,6 @@ from fastapi_cache.decorator import cache
 
 from random import randint
 
-import jwt
-
-from app.config import settings
-
 from app.orders.dao import OrderDAO
 from app.products.dao import ProductDAO
 from app.services.consumer import send_email_to_user
@@ -16,7 +12,6 @@ from app.services.producer import send_to_rabbitmq
 from app.users.auth import activate, authencicate_user, create_token, get_password_hash
 from app.users.dao import UserDAO
 from app.users.dependencies import get_current_user
-from cloudipsp import Api, Checkout
 from app.users.model import User
 from app.users.shemas import SUserLogin, SUserOrder
 
@@ -75,7 +70,7 @@ async def make_order(user_data: SUserOrder, user: User = Depends(get_current_use
 async def delete_order(order_id: int, user: User = Depends(get_current_user)):
   try:
     await OrderDAO.delete_by_filters(id = order_id)
-    return "order was deleted"
+    return {"message": "order was deleted"}
   except Exception as e:
     HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
@@ -99,7 +94,7 @@ async def register(response: Response , user_data: SUserLogin):
     send_to_rabbitmq(message_body)
     send_email_to_user()
 
-    return f"code was sent"
+    return {"message": "code was sent"}
 
 
 
@@ -128,14 +123,14 @@ async def login(response: Response, user_data: SUserLogin):
      raise HTTPException(status_code=401)
    access_token = create_token(time_to_exp=30, data={"sub":str(user.id)})
    response.set_cookie("access_token", access_token, httponly=True, secure=True,)
-   return "user login sucsesful"
+   return {"message":"user login sucsesful"}
 
 
 @router.post("/logout")
 async def logout(response: Response, user: User = Depends(get_current_user)):
   try:
     response.delete_cookie("access_token")
-    return f"You logout sucsesful"
+    return {"message":"You logout sucsesful"}
   except:
     raise HTTPException(status_code=400)
 
@@ -146,6 +141,6 @@ async def delete_user(response: Response, user: User = Depends(get_current_user)
     await OrderDAO.delete_by_filters(user_id = user.id)
     await UserDAO.delete_by_filters(id = user.id)
     response.delete_cookie("access_token")
-    return f"account deleted sucsessfuly"
+    return {"message":"user was deleted"}
   except Exception as e:
     raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))

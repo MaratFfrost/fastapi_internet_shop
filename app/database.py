@@ -2,7 +2,6 @@ from sqlalchemy import NullPool
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 from pymongo import AsyncMongoClient
-from boto3.dynamodb.conditions import Key
 
 from app.config import settings
 
